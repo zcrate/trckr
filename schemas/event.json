@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://trckr.dev/schemas/event.json",
+  "title": "Event",
+  "type": "object",
+  "required": ["id", "item_id", "timestamp"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^evt_[a-zA-Z0-9_-]+$",
+      "description": "Unique event log identifier."
+    },
+    "item_id": {
+      "type": "string",
+      "pattern": "^itm_[a-zA-Z0-9_-]+$",
+      "description": "References the target Item."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp."
+    },
+    "action": {
+      "type": "string",
+      "enum": ["start", "stop", "count", "toggle"],
+      "description": "Explicit state trigger. Can default to 'toggle' for minimal client triggers."
+    },
+    "source": {
+      "type": "string",
+      "description": "Origin trigger (e.g., 'widget', 'manual_tap', 'auto_group', 'sensor')."
+    }
+  },
+  "additionalProperties": false
+}

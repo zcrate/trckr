@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://trckr.dev/schemas/item.json",
+  "title": "Item",
+  "type": "object",
+  "required": ["id", "label", "type", "created_at"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^itm_[a-zA-Z0-9_-]+$",
+      "description": "Unique item identifier."
+    },
+    "label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "type": {
+      "type": "string",
+      "enum": ["timed", "counted"]
+    },
+    "group_id": {
+      "type": ["string", "null"],
+      "pattern": "^grp_[a-zA-Z0-9_-]+$",
+      "default": null,
+      "description": "Refers to a Group ID. Timed items in the same group are mutually exclusive."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": false
+}
