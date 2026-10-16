@@ -7,7 +7,7 @@ DATA_DIR = Path("data")
 class JSONStorage:
     def __init__(self, data_dir: Path = DATA_DIR):
         self.data_dir = data_dir
-        self.data_dir.mkdir(exist_ok=True)
+        self.data_dir.mkdir(parents=True, exist_ok=True)
         self.groups_file = self.data_dir / "groups.json"
         self.tags_file = self.data_dir / "tags.json"
         self.items_file = self.data_dir / "items.json"
