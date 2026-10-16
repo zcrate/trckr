@@ -11,11 +11,6 @@
       "maxLength": 30,
       "description": "Unique string tag identifier (e.g., 'homework', 'stars')."
     },
-    "label": {
-      "type": ["string", "null"],
-      "default": null,
-      "description": "Optional human-friendly display label (defaults to capitalizing id)."
-    },
     "color": {
       "type": "string",
       "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$",

@@ -64,8 +64,7 @@ Optional visual metadata registry (stored in `data/tags.json`) used for UI badge
 
 ```json
 {
-  "id": "tag_101",
-  "label": "Homework",
+  "id": "homework",
   "color": "#0A84FF",
   "icon": "book"
 }
