@@ -11,6 +11,40 @@ A minimal, event-driven time and count tracking engine designed for zero-frictio
 - **Events**: Append-only log entries containing an `item_id`, `timestamp`, and state metadata.
 - **State Engine**: Current item states, active timers, and aggregate counts are calculated dynamically by reading the event stream on the backend.
 
+## Running
+
+The CLI is a stdlib-only `argparse` program with no runtime dependencies. Python 3.14 and
+[uv](https://docs.astral.sh/uv/) are the expected toolchain.
+
+```bash
+uv sync                 # creates .venv, installs pytest and the `trckr` script
+uv run trckr --help
+uv run python -m pytest # run the test suite
+```
+
+Data lives in four JSON files under `./data/` by default (gitignored). Override the location
+with `--data-dir PATH` or the `TRCKR_DATA_DIR` environment variable.
+
+```bash
+uv run trckr group add "Work"
+uv run trckr add "Coding" --group Work --tag dev
+uv run trckr add "Meeting" --group Work
+uv run trckr add "Water" --type counted
+
+uv run trckr trigger Coding          # starts the Coding timer
+uv run trckr trigger Meeting         # auto-stops Coding, starts Meeting
+uv run trckr trigger Water           # counted item: count -> 1
+
+uv run trckr status                  # running/stopped, elapsed, totals, counts, tag colors
+uv run trckr status --json
+uv run trckr log --item Coding --limit 20
+uv run trckr tag set dev --color "#007AFF" --icon code
+uv run trckr tag list
+```
+
+Items and groups can be referenced by id (`itm_505c5a3a`) or by label (case-insensitive).
+Without installing, `python -m src.main ...` from the repo root works too.
+
 ---
 
 ## Data Architecture
@@ -76,10 +110,11 @@ trckr/
 ├── docs/ # Architecture decision records & design specs
 ├── schemas/ # JSON Schemas (group.json, item.json, event.json, tag.json)
 ├── src/
+│ ├── main.py # argparse CLI (`trckr`); wires engine to storage
 │ ├── core/ # State resolver, group auto-stop, & get_auto_color() utility
 │ ├── storage/ # Local database & append-only log engine
-│ └── integrations/ # Widget, sensor, and external trigger ingestion
-└── tests/ # Core logic test suite
+│ └── integrations/ # (planned) Widget, sensor, and external trigger ingestion
+└── tests/ # Core logic and CLI test suite
 
 ### State Resolution Rules
 

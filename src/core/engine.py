@@ -1,4 +1,5 @@
-from datetime import datetime
+import uuid
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
 from src.core.utils import get_auto_color
 
@@ -20,6 +21,46 @@ def resolve_item_state(item_id: str, events: List[Dict[str, Any]]) -> Dict[str, 
         "event_count": count,
         "is_active": is_active,
         "last_timestamp": last_event["timestamp"] if last_event else None
+    }
+
+
+def _parse_timestamp(value: str) -> datetime:
+    """Parses an ISO-8601 timestamp (accepting a trailing 'Z') into an aware UTC datetime."""
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def resolve_item_duration(item_id: str, events: List[Dict[str, Any]], now: str) -> Dict[str, Any]:
+    """
+    Derives accumulated time for a timed item by pairing its events in timestamp order.
+    Even-indexed events open an interval, odd-indexed events close it. An unpaired final
+    event means the timer is running; that open interval is measured up to `now`.
+    """
+    item_events = [e for e in events if e.get("item_id") == item_id]
+    item_events.sort(key=lambda x: x["timestamp"])
+
+    total = 0.0
+    current = 0.0
+    is_active = False
+    for i in range(0, len(item_events), 2):
+        start = _parse_timestamp(item_events[i]["timestamp"])
+        if i + 1 < len(item_events):
+            end = _parse_timestamp(item_events[i + 1]["timestamp"])
+        else:
+            end = _parse_timestamp(now)
+            is_active = True
+        seconds = max(0.0, (end - start).total_seconds())
+        total += seconds
+        if is_active:
+            current = seconds
+
+    return {
+        "item_id": item_id,
+        "total_seconds": total,
+        "current_seconds": current,
+        "is_active": is_active,
     }
 
 
@@ -52,7 +93,7 @@ def process_trigger(
             if state["is_active"]:
                 # Auto-stop running timer in same group
                 new_events.append({
-                    "id": f"evt_auto_{int(datetime.now().timestamp())}",
+                    "id": f"evt_auto_{uuid.uuid4().hex}",
                     "item_id": sib_id,
                     "timestamp": timestamp,
                     "action": "stop",
@@ -67,7 +108,7 @@ def process_trigger(
         action = "stop" if current_state["is_active"] else "start"
 
     new_events.append({
-        "id": f"evt_{int(datetime.now().timestamp())}",
+        "id": f"evt_{uuid.uuid4().hex}",
         "item_id": item["id"],
         "timestamp": timestamp,
         "action": action,
