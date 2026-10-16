@@ -17,33 +17,7 @@ A minimal, event-driven time and count tracking engine designed for zero-frictio
 
 ### Schema Models
 
-#### 1. Group (`schemas/group.json`)
-
-Defines a mutual exclusion category for timed items.
-
-```json
-{
-  "id": "grp_101",
-  "label": "Work Stuff",
-  "created_at": "2026-10-03T09:00:00Z"
-}
-```
-
-#### 2. Item (`schemas/item.json`)
-
-Defines the template for a tracked item.
-
-```json
-{
-  "id": "itm_102",
-  "label": "Pipeline Project",
-  "type": "timed",
-  "group_id": "grp_101",
-  "created_at": "2026-10-03T09:00:00Z"
-}
-```
-
-#### 3. Event (`schemas/event.json`)
+#### 1. Event (`schemas/event.json`)
 
 An immutable point-in-time record generated manually (via tap/widget) or automatically (via group linkages or sensors).
 
@@ -57,13 +31,53 @@ An immutable point-in-time record generated manually (via tap/widget) or automat
 }
 ```
 
+#### 2. Group (`schemas/group.json`)
+
+Defines a mutual exclusion category for timed items.
+
+```json
+{
+  "id": "grp_101",
+  "label": "Work Stuff",
+  "created_at": "2026-10-03T09:00:00Z"
+}
+```
+
+#### 3. Item (`schemas/item.json`)
+
+Defines the template for a tracked item.
+
+```json
+{
+  "id": "itm_102",
+  "label": "Pipeline Project",
+  "type": "timed",
+  "group_id": "grp_101",
+  "tags": ["work", "project"],
+  "created_at": "2026-10-03T09:00:00Z"
+}
+```
+
+#### 4. Tag (`schemas/tag.json`)
+
+Optional visual metadata registry (stored in `data/tags.json`) used for UI badges, colors, and dashboard icons without affecting core event logic.
+
+```json
+{
+  "id": "tag_101",
+  "label": "Homework",
+  "color": "#0A84FF",
+  "icon": "book"
+}
+```
+
 ## Repository Structure
 
 trckr/
 ├── docs/ # Architecture decision records & design specs
-├── schemas/ # JSON Schema definitions (group.json, item.json, event.json)
+├── schemas/ # JSON Schemas (group.json, item.json, event.json, tag.json)
 ├── src/
-│ ├── core/ # Event stream state resolver & auto-stop logic
+│ ├── core/ # State resolver, group auto-stop, & get_auto_color() utility
 │ ├── storage/ # Local database & append-only log engine
 │ └── integrations/ # Widget, sensor, and external trigger ingestion
 └── tests/ # Core logic test suite

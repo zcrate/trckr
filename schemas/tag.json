@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://trckr.dev/schemas/tag.json",
+  "title": "TagMetadata",
+  "type": "object",
+  "required": ["id", "color"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 30,
+      "description": "Unique string tag identifier (e.g., 'homework', 'stars')."
+    },
+    "label": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Optional human-friendly display label (defaults to capitalizing id)."
+    },
+    "color": {
+      "type": "string",
+      "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$",
+      "description": "Hex color code for UI badges."
+    },
+    "icon": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Optional icon identifier (e.g., 'book', 'star', 'user')."
+    }
+  },
+  "additionalProperties": false
+}

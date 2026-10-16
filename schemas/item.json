@@ -23,7 +23,17 @@
       "type": ["string", "null"],
       "pattern": "^grp_[a-zA-Z0-9_-]+$",
       "default": null,
-      "description": "Refers to a Group ID. Timed items in the same group are mutually exclusive."
+      "description": "Refers to a Group ID for mutual exclusion auto-stopping."
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 30
+      },
+      "default": [],
+      "description": "Organizational tags for filtering, UI comparisons, and group dashboards."
     },
     "created_at": {
       "type": "string",
