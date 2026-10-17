@@ -217,6 +217,29 @@ def cmd_trigger(args: argparse.Namespace, storage: JSONStorage) -> int:
         print(line)
     return 0
 
+def cmd_log(args: argparse.Namespace, storage: JSONStorage) -> int:
+    items = storage.load_items()
+    events = storage.load_events()
+    if args.item:
+        item_id = _find("item", items, args.item)["id"]
+        events = [e for e in events if e.get("item_id") == item_id]
+    events.sort(key=lambda e: e["timestamp"])
+    if args.limit is not None and args.limit >= 0:
+        events = events[-args.limit:] if args.limit else []
+    labels = {i["id"]: i["label"] for i in items}
+    rows = [
+        [
+            e["timestamp"],
+            e.get("action", "toggle"),
+            labels.get(e["item_id"], e["item_id"]),
+            e.get("source", "-"),
+            e["id"],
+        ]
+        for e in events
+    ]
+    _print_table(rows, ["TIMESTAMP", "ACTION", "ITEM", "SOURCE", "EVENT"])
+    return 0
+
 
 def _status_rows(storage: JSONStorage, now: str) -> List[Dict[str, Any]]:
     events = storage.load_events()
@@ -244,6 +267,9 @@ def _status_rows(storage: JSONStorage, now: str) -> List[Dict[str, Any]]:
             row["total_seconds"] = dur["total_seconds"]
         rows.append(row)
     return rows
+
+
+
 
 
 # --- parser ----------------------------------------------------------------
