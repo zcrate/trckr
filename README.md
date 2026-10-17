@@ -30,8 +30,6 @@ trckr [--data-dir DIR]
 │   └── list                # List active tags and registered styles
 ├── trigger (alias: t)     # Core Event Ingestion
 │   └── <item_ref>          # Start/stop timer or increment count (--source)
-├── status  (alias: s)     # Current State Overview
-│   └── [--tag] [--json]    # Resolve live active timers and counts
 └── log                     # Historical Event Audit Log
     └── [--item] [--tag]    # View immutable event log (--limit)
 
@@ -48,20 +46,20 @@ Data lives in four JSON files under `./data/` by default (gitignored). Override 
 with `--data-dir PATH` or the `TRCKR_DATA_DIR` environment variable.
 
 ```bash
-uv run trckr group add "Work"
-uv run trckr add "Coding" --group Work --tag dev
-uv run trckr add "Meeting" --group Work
-uv run trckr add "Water" --type counted
+trckr group add "Work"
+trckr item add "Coding" --group Work --tag dev
+trckr item add "Meeting" --group Work
+trckr item add "Water" --type counted
 
-uv run trckr trigger Coding          # starts the Coding timer
-uv run trckr trigger Meeting         # auto-stops Coding, starts Meeting
-uv run trckr trigger Water           # counted item: count -> 1
+trckr trigger Coding          # starts the Coding timer
+trckr trigger Meeting         # auto-stops Coding, starts Meeting
+trckr trigger Water           # counted item: count -> 1
 
-uv run trckr status                  # running/stopped, elapsed, totals, counts, tag colors
-uv run trckr status --json
-uv run trckr log --item Coding --limit 20
-uv run trckr tag set dev --color "#007AFF" --icon code
-uv run trckr tag list
+trckr item list                  # running/stopped, elapsed, totals, counts, tag colors
+trckr item list --json
+trckr log --item Coding --limit 20
+trckr tag set dev --color "#007AFF" --icon code
+trckr tag list
 ```
 
 Items and groups can be referenced by id (`itm_505c5a3a`) or by label (case-insensitive).
@@ -127,7 +125,7 @@ Optional visual metadata registry (stored in `data/tags.json`) used for UI badge
 ```
 
 ## Repository Structure
-
+````text
 trckr/
 ├── docs/ # Architecture decision records & design specs
 ├── schemas/ # JSON Schemas (group.json, item.json, event.json, tag.json)
