@@ -11,7 +11,27 @@ A minimal, event-driven time and count tracking engine designed for zero-frictio
 - **Events**: Append-only log entries containing an `item_id`, `timestamp`, and state metadata.
 - **State Engine**: Current item states, active timers, and aggregate counts are calculated dynamically by reading the event stream on the backend.
 
-## Running
+## CLI Architecture & Logic Flow
+
+The `trckr` CLI (`src/cli.py`) acts as the primary operational entry point and management interface. Built with Python's `argparse`, it maps subcommands to core engine triggers, state queries, and resource management tasks. Python 3.14 and [uv](https://docs.astral.sh/uv/) are the expected toolchain.
+
+### Command Hierarchy
+
+````text
+trckr [--data-dir DIR]
+├── item                    # Tracked Item Management
+│   ├── add <label>         # Create item (--type, --group, --tags)
+│   └── list                # List all items (--tag, --json)
+├── group                   # Auto-Stop Group Management
+│   ├── add <label>         # Create a mutually exclusive timer group
+│   └── list                # List existing auto-stop groups
+├── tag                     # UI Metadata Registry
+│   ├── set <tag>           # Configure tag visual properties (--color, --icon)
+│   └── list                # List active tags and registered styles
+├── trigger (alias: t)     # Core Event Ingestion
+│   └── <item_ref>          # Start/stop timer or increment count (--source)
+└── log                     # Historical Event Audit Log
+    └── [--item] [--tag]    # View immutable event log (--limit)
 
 The CLI is a stdlib-only `argparse` program with no runtime dependencies. Python 3.14 and
 [uv](https://docs.astral.sh/uv/) are the expected toolchain.
@@ -20,30 +40,30 @@ The CLI is a stdlib-only `argparse` program with no runtime dependencies. Python
 uv sync                 # creates .venv, installs pytest and the `trckr` script
 uv run trckr --help
 uv run python -m pytest # run the test suite
-```
+````
 
 Data lives in four JSON files under `./data/` by default (gitignored). Override the location
 with `--data-dir PATH` or the `TRCKR_DATA_DIR` environment variable.
 
 ```bash
-uv run trckr group add "Work"
-uv run trckr add "Coding" --group Work --tag dev
-uv run trckr add "Meeting" --group Work
-uv run trckr add "Water" --type counted
+trckr group add "Work"
+trckr item add "Coding" --group Work --tag dev
+trckr item add "Meeting" --group Work
+trckr item add "Water" --type counted
 
-uv run trckr trigger Coding          # starts the Coding timer
-uv run trckr trigger Meeting         # auto-stops Coding, starts Meeting
-uv run trckr trigger Water           # counted item: count -> 1
+trckr trigger Coding          # starts the Coding timer
+trckr trigger Meeting         # auto-stops Coding, starts Meeting
+trckr trigger Water           # counted item: count -> 1
 
-uv run trckr status                  # running/stopped, elapsed, totals, counts, tag colors
-uv run trckr status --json
-uv run trckr log --item Coding --limit 20
-uv run trckr tag set dev --color "#007AFF" --icon code
-uv run trckr tag list
+trckr item list                  # running/stopped, elapsed, totals, counts, tag colors
+trckr item list --json
+trckr log --item Coding --limit 20
+trckr tag set dev --color "#007AFF" --icon code
+trckr tag list
 ```
 
 Items and groups can be referenced by id (`itm_505c5a3a`) or by label (case-insensitive).
-Without installing, `python -m src.main ...` from the repo root works too.
+Without installing, `python -m src.cli ...` from the repo root works too.
 
 ---
 
@@ -105,7 +125,7 @@ Optional visual metadata registry (stored in `data/tags.json`) used for UI badge
 ```
 
 ## Repository Structure
-
+````text
 trckr/
 ├── docs/ # Architecture decision records & design specs
 ├── schemas/ # JSON Schemas (group.json, item.json, event.json, tag.json)
