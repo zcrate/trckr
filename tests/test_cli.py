@@ -1,16 +1,14 @@
 import json
 import re
-
 import pytest
 
-from src.main import main
-
+from src.cli import cli
 
 @pytest.fixture
 def run(tmp_path, capsys):
     """Invoke the CLI against an isolated data dir; returns (exit_code, stdout, stderr)."""
     def _run(*argv):
-        code = main(["--data-dir", str(tmp_path), *argv])
+        code = cli(["--data-dir", str(tmp_path), *argv])
         captured = capsys.readouterr()
         return code, captured.out, captured.err
     return _run

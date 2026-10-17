@@ -110,7 +110,7 @@ def _print_table(rows: List[List[str]], header: List[str]) -> None:
 
 # --- command handlers ------------------------------------------------------
 
-def cmd_add(args: argparse.Namespace, storage: JSONStorage) -> int:
+def cmd_item_add(args: argparse.Namespace, storage: JSONStorage) -> int:
     label = _validate_label(args.label)
     group_id: Optional[str] = None
     if args.group:
@@ -121,11 +121,29 @@ def cmd_add(args: argparse.Namespace, storage: JSONStorage) -> int:
         "label": label,
         "type": args.type,
         "group_id": group_id,
-        "tags": _validate_tags(args.tag or []),
+        "tags": _validate_tags(args.tags or []),
         "created_at": _now_iso(),
     }
     storage.save_item(item)
     print(f'created {item["id"]} "{label}" ({item["type"]})')
+    return 0
+
+def cmd_item_list(args: argparse.Namespace, storage: JSONStorage) -> int:
+    rows = _status_rows(storage, _now_iso())
+    if args.json:
+        print(json.dumps(rows, indent=2))
+        return 0
+    table = []
+    for r in rows:
+        if r["type"] == "counted":
+            state = f'count {r["count"]}'
+        elif r["is_active"]:
+            state = f'running {_fmt_duration(r["current_seconds"])}  total {_fmt_duration(r["total_seconds"])}'
+        else:
+            state = f'stopped  total {_fmt_duration(r["total_seconds"])}'
+        tags = " ".join(f'{t["id"]}({t["color"]})' for t in r["tags"])
+        table.append([r["id"], r["label"], r["type"], r["group"] or "-", state, tags])
+    _print_table(table, ["ID", "LABEL", "TYPE", "GROUP", "STATE", "TAGS"])
     return 0
 
 
@@ -141,7 +159,6 @@ def cmd_group_add(args: argparse.Namespace, storage: JSONStorage) -> int:
     print(f'created {group["id"]} "{label}"')
     return 0
 
-
 def cmd_group_list(args: argparse.Namespace, storage: JSONStorage) -> int:
     items = storage.load_items()
     rows = []
@@ -149,6 +166,35 @@ def cmd_group_list(args: argparse.Namespace, storage: JSONStorage) -> int:
         members = sum(1 for i in items if i.get("group_id") == g["id"])
         rows.append([g["id"], g["label"], str(members)])
     _print_table(rows, ["ID", "LABEL", "ITEMS"])
+    return 0
+
+
+def cmd_tag_set(args: argparse.Namespace, storage: JSONStorage) -> int:
+    tag_id = normalize_tag(args.tag)
+    if not tag_id:
+        raise CLIError("tag must not be empty")
+    if len(tag_id) > MAX_TAG:
+        raise CLIError(f"tag must be at most {MAX_TAG} characters")
+    if not HEX_COLOR.match(args.color):
+        raise CLIError(f"color '{args.color}' is not a hex color like #0A84FF")
+    tag = {"id": tag_id, "color": args.color, "icon": args.icon}
+    storage.save_tag(tag)
+    print(f'set tag {tag_id} color {args.color}' + (f' icon {args.icon}' if args.icon else ""))
+    return 0
+
+def cmd_tag_list(args: argparse.Namespace, storage: JSONStorage) -> int:
+    registry = {t["id"]: t for t in storage.load_tags()}
+    seen = set()
+    for item in storage.load_items():
+        seen.update(item.get("tags", []))
+    rows = []
+    for tag_id in sorted(seen | set(registry)):
+        if tag_id in registry:
+            t = registry[tag_id]
+            rows.append([tag_id, t["color"], t.get("icon") or "-", ""])
+        else:
+            rows.append([tag_id, get_auto_color(tag_id), "-", "(auto)"])
+    _print_table(rows, ["TAG", "COLOR", "ICON", ""])
     return 0
 
 
@@ -200,79 +246,6 @@ def _status_rows(storage: JSONStorage, now: str) -> List[Dict[str, Any]]:
     return rows
 
 
-def cmd_status(args: argparse.Namespace, storage: JSONStorage) -> int:
-    rows = _status_rows(storage, _now_iso())
-    if args.json:
-        print(json.dumps(rows, indent=2))
-        return 0
-    table = []
-    for r in rows:
-        if r["type"] == "counted":
-            state = f'count {r["count"]}'
-        elif r["is_active"]:
-            state = f'running {_fmt_duration(r["current_seconds"])}  total {_fmt_duration(r["total_seconds"])}'
-        else:
-            state = f'stopped  total {_fmt_duration(r["total_seconds"])}'
-        tags = " ".join(f'{t["id"]}({t["color"]})' for t in r["tags"])
-        table.append([r["id"], r["label"], r["type"], r["group"] or "-", state, tags])
-    _print_table(table, ["ID", "LABEL", "TYPE", "GROUP", "STATE", "TAGS"])
-    return 0
-
-
-def cmd_log(args: argparse.Namespace, storage: JSONStorage) -> int:
-    items = storage.load_items()
-    events = storage.load_events()
-    if args.item:
-        item_id = _find("item", items, args.item)["id"]
-        events = [e for e in events if e.get("item_id") == item_id]
-    events.sort(key=lambda e: e["timestamp"])
-    if args.limit is not None and args.limit >= 0:
-        events = events[-args.limit:] if args.limit else []
-    labels = {i["id"]: i["label"] for i in items}
-    rows = [
-        [
-            e["timestamp"],
-            e.get("action", "toggle"),
-            labels.get(e["item_id"], e["item_id"]),
-            e.get("source", "-"),
-            e["id"],
-        ]
-        for e in events
-    ]
-    _print_table(rows, ["TIMESTAMP", "ACTION", "ITEM", "SOURCE", "EVENT"])
-    return 0
-
-
-def cmd_tag_set(args: argparse.Namespace, storage: JSONStorage) -> int:
-    tag_id = normalize_tag(args.tag)
-    if not tag_id:
-        raise CLIError("tag must not be empty")
-    if len(tag_id) > MAX_TAG:
-        raise CLIError(f"tag must be at most {MAX_TAG} characters")
-    if not HEX_COLOR.match(args.color):
-        raise CLIError(f"color '{args.color}' is not a hex color like #0A84FF")
-    tag = {"id": tag_id, "color": args.color, "icon": args.icon}
-    storage.save_tag(tag)
-    print(f'set tag {tag_id} color {args.color}' + (f' icon {args.icon}' if args.icon else ""))
-    return 0
-
-
-def cmd_tag_list(args: argparse.Namespace, storage: JSONStorage) -> int:
-    registry = {t["id"]: t for t in storage.load_tags()}
-    seen = set()
-    for item in storage.load_items():
-        seen.update(item.get("tags", []))
-    rows = []
-    for tag_id in sorted(seen | set(registry)):
-        if tag_id in registry:
-            t = registry[tag_id]
-            rows.append([tag_id, t["color"], t.get("icon") or "-", ""])
-        else:
-            rows.append([tag_id, get_auto_color(tag_id), "-", "(auto)"])
-    _print_table(rows, ["TAG", "COLOR", "ICON", ""])
-    return 0
-
-
 # --- parser ----------------------------------------------------------------
 
 def build_parser() -> argparse.ArgumentParser:
@@ -287,52 +260,66 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", metavar="COMMAND")
     sub.required = True
-
-    p = sub.add_parser("add", help="create a tracked item")
+    
+# --- ITEM MANAGEMENT ---
+    i = sub.add_parser("item", help="Manage tracked items")
+    isub = i.add_subparsers(dest="item_command", metavar="SUBCOMMAND")
+    isub.required = True
+    # item add
+    p = isub.add_parser("add", help="Create a trackable item")
     p.add_argument("label")
-    p.add_argument("--type", choices=["timed", "counted"], default="timed")
-    p.add_argument("--group", metavar="REF", help="group id or label")
-    p.add_argument("--tag", action="append", metavar="TAG", help="repeatable")
-    p.set_defaults(func=cmd_add)
+    p.add_argument("--type", choices=["timed", "counted"], default="counted")
+    p.add_argument("--group", metavar="REF", help="Optional auto-stop group id or label")
+    p.add_argument("--tags", action="append", metavar="TAG", help="Optional item tag. Can be repeated.")
+    p.set_defaults(func=cmd_item_add)
+    # item list
+    p = isub.add_parser("list", help="List all items")
+    p.add_argument("--tag", metavar="TAG", help="Filter items by tag")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_item_list)
 
-    g = sub.add_parser("group", help="manage mutual-exclusion groups")
+# --- GROUP MANAGEMENT ---
+    g = sub.add_parser("group", help="Manage auto-stop groups")
     gsub = g.add_subparsers(dest="group_command", metavar="SUBCOMMAND")
     gsub.required = True
-    p = gsub.add_parser("add", help="create a group")
+    # group add
+    p = gsub.add_parser("add", help="Create an auto-stop group")
     p.add_argument("label")
     p.set_defaults(func=cmd_group_add)
-    p = gsub.add_parser("list", help="list groups")
+    # group list
+    p = gsub.add_parser("list", help="List auto-stop groups")
     p.set_defaults(func=cmd_group_list)
 
-    p = sub.add_parser("trigger", help="start/stop a timer or bump a counter")
-    p.add_argument("item", metavar="REF", help="item id or label")
+# --- TAG MANAGEMENT ---
+    t = sub.add_parser("tag", help="Manage tag colors and icons")
+    tsub = t.add_subparsers(dest="tag_command", metavar="SUBCOMMAND")
+    tsub.required = True
+    # tag set
+    p = tsub.add_parser("set", help="Set a tag's color and icon")
+    p.add_argument("tag")
+    p.add_argument("--color", metavar="HEX", help="Hex color (e.g. #0A84FF)")
+    p.add_argument("--icon", help="Icon identifier")
+    p.set_defaults(func=cmd_tag_set)
+    # tag list
+    p = tsub.add_parser("list", help="List tags in use and in the registry")
+    p.set_defaults(func=cmd_tag_list)
+
+# --- OPERATIONAL EXECUTION ---
+    p = sub.add_parser("trigger", aliases=["t"], help="Start/stop a timer or bump a counter")
+    p.add_argument("item", metavar="REF", help="Item id or label")
     p.add_argument("--source", choices=SOURCES, default="manual_tap")
     p.set_defaults(func=cmd_trigger)
 
-    p = sub.add_parser("status", help="show the state of every item")
-    p.add_argument("--json", action="store_true")
-    p.set_defaults(func=cmd_status)
-
-    p = sub.add_parser("log", help="list events")
-    p.add_argument("--item", metavar="REF", help="only events for this item")
-    p.add_argument("--limit", type=int, default=50, help="newest N events (default 50)")
+    p = sub.add_parser("log", aliases=["l"], help="List historical event log")
+    p.add_argument("--item", metavar="REF", help="Only events for this item")
+    p.add_argument("--tag", metavar="TAG", help="Only events for items matching this tag")
+    p.add_argument("--limit", type=int, default=50, help="Newest N events (default 50)")
     p.set_defaults(func=cmd_log)
-
-    t = sub.add_parser("tag", help="manage tag colors and icons")
-    tsub = t.add_subparsers(dest="tag_command", metavar="SUBCOMMAND")
-    tsub.required = True
-    p = tsub.add_parser("set", help="set a tag's color and icon")
-    p.add_argument("tag")
-    p.add_argument("--color", required=True, metavar="HEX")
-    p.add_argument("--icon")
-    p.set_defaults(func=cmd_tag_set)
-    p = tsub.add_parser("list", help="list tags in use and in the registry")
-    p.set_defaults(func=cmd_tag_list)
 
     return parser
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def cli(argv: Optional[List[str]] = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     storage = JSONStorage(Path(args.data_dir))
@@ -344,4 +331,4 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(cli())
