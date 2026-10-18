@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Toolchain is Python 3.14 + `uv`. `pyproject.toml` declares no runtime dependencies; `pytest`
 is in the `dev` dependency group. The project builds with hatchling so that `uv sync`
-installs the `trckr` console script (entry point `src.main:main`).
+installs the `trckr` console script (entry point `src.cli:cli`).
 
 ```bash
 uv sync                                                 # one-time setup (.venv is gitignored)
@@ -20,12 +20,23 @@ Always run pytest from the repo root with `python -m pytest`, not bare `pytest`.
 modules import via the `src.` package path (`from src.core.engine import ...`), which only
 resolves when the repo root is on `sys.path`.
 
-`src/main.py` is the argparse CLI (`add`, `group add|list`, `trigger`, `status [--json]`,
-`log`, `tag set|list`). It is the only place that wires the engine to storage. Global
+`src/cli.py` is the argparse CLI. The command tree is:
+
+- `item add LABEL [--type timed|counted] [--group REF] [--tags TAG ...]` (`--tags` is repeatable;
+  `--type` defaults to `counted`)
+- `item list [--json]` (replaces the old `status`)
+- `group add LABEL`, `group list`
+- `tag set TAG --color HEX [--icon ICON]`, `tag list`
+- `trigger REF [--source ...]` (alias `t`)
+- `log [--item REF] [--limit N]` (alias `l`)
+
+`item list --tag` and `log --tag` are declared on the parser but not yet implemented; the
+handlers ignore them. `src/cli.py` is the only place that wires the engine to storage. Global
 `--data-dir` (or env `TRCKR_DATA_DIR`) selects the data directory; default is `data`. Items
 and groups get `itm_`/`grp_` plus 8 random hex chars and can be referenced by id or by
 case-insensitive label. User errors raise `CLIError`, printed to stderr with exit code 1.
-`tests/test_cli.py` drives `main([...])` directly against a `tmp_path` data dir.
+`tests/test_cli.py` drives `cli([...])` directly against a `tmp_path` data dir. When the
+command tree changes, update the tests, the README usage block, and this file together.
 
 ## Core concept
 
@@ -49,7 +60,7 @@ touches storage; the caller wires them together.
     based on current parity). Auto-stop events come first in the returned list; tests rely on that.
   - `resolve_item_duration(item_id, events, now)` pairs an item's sorted events
     (even index opens, odd index closes) and returns `total_seconds`, `current_seconds`
-    (the open interval measured to `now`), and `is_active`. Used by `trckr status`.
+    (the open interval measured to `now`), and `is_active`. Used by `trckr item list`.
   - `enrich_item_tags(item, tag_registry)` resolves item tag strings against the tag registry and
     synthesizes `{id, label, color, icon}` with a `get_auto_color` fallback for unregistered tags.
     Note: the synthesized dict includes `label`, which `schemas/tag.json` does not allow; enriched
